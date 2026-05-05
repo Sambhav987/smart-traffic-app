@@ -20,7 +20,14 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "googleServicesFile": "./google-services.json",
+      "edgeToEdgeEnabled": true,
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyD_sJ8J3TEqLeBhYmS6W-y3vyXeMliFpZY"
+        }
+      },
+      "package": "com.anonymous.smarttrafficapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
