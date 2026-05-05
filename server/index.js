@@ -46,6 +46,17 @@ app.get('/historic-data', (_req, res) => {
   }
 });
 
+app.get('/max-wait-time', (_req, res) => {
+  try {
+    const row = db
+      .prepare('SELECT timestamp, "group", max_wait_time FROM max_wait_time ORDER BY id DESC LIMIT 1')
+      .get();
+    res.json(row || null);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/tables', (_req, res) => {
   const rows = db
     .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")

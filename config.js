@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 // Your PC's LAN IPv4. Required for physical devices on the same Wi-Fi.
 // Run `ipconfig` (Windows) and look for the IPv4 Address under your active
 // Wi-Fi adapter.
-const LAN_IP = '192.168.1.73';
+const LAN_IP = '10.147.14.92';
 
 function resolveHost() {
   // For physical devices, always use LAN_IP. (10.0.2.2 only works on the

@@ -1,10 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity,
   ScrollView, Dimensions,
 } from 'react-native';
 import TrafficMap from '../components/TrafficMap';
+import { API_BASE_URL } from '../config';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -17,6 +18,24 @@ const STATUS_COLORS = { green: '#22c55e', yellow: '#eab308', red: '#ef4444' };
 export default function HomeScreen({ navigation }) {
   const [signals, setSignals] = useState(SIGNALS);
   const [selected, setSelected] = useState(null);
+  const [maxWait, setMaxWait] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchMaxWait() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/max-wait-time`);
+        if (!res.ok) return;
+        const row = await res.json();
+        if (!cancelled) setMaxWait(row?.max_wait_time ?? null);
+      } catch {
+        // ignore transient errors
+      }
+    }
+    fetchMaxWait();
+    const id = setInterval(fetchMaxWait, 5000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
 
   function cycleStatus(id) {
     setSignals(prev =>
@@ -70,7 +89,11 @@ export default function HomeScreen({ navigation }) {
               >
                 <Text style={styles.intersection} numberOfLines={1}>{signal.intersection}</Text>
                 <Text style={styles.status}>
-                  {signal.wait > 0 ? ` ${signal.wait}s wait` : '  No wait'}
+                  {maxWait == null
+                    ? '  Loading…'
+                    : maxWait > 0
+                      ? ` Maximum ${maxWait.toFixed(2)}s wait`
+                      : '  No wait'}
                 </Text>
               </TouchableOpacity>
             </View>
