@@ -2,7 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity,
-  ScrollView, Dimensions,
+  ScrollView, Dimensions, Modal, TextInput, Alert,
 } from 'react-native';
 import TrafficMap from '../components/TrafficMap';
 import { API_BASE_URL } from '../config';
@@ -19,6 +19,43 @@ export default function HomeScreen({ navigation }) {
   const [signals, setSignals] = useState(SIGNALS);
   const [selected, setSelected] = useState(null);
   const [maxWait, setMaxWait] = useState(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [numInstances, setNumInstances] = useState('');
+  const [section, setSection] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submitAccident() {
+    const n = parseInt(numInstances, 10);
+    if (!Number.isFinite(n) || n < 0) {
+      Alert.alert('Invalid', 'Enter a non-negative number for instances.');
+      return;
+    }
+    if (!section.trim()) {
+      Alert.alert('Invalid', 'Section is required.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/accidents`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ num_instances: n, section: section.trim() }),
+      });
+      const text = await res.text();
+      if (!res.ok) {
+        Alert.alert('Report failed', `${res.status}: ${text}`);
+      } else {
+        Alert.alert('Reported', 'Accident has been logged.');
+        setReportOpen(false);
+        setNumInstances('');
+        setSection('');
+      }
+    } catch (e) {
+      Alert.alert('Network error', e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -95,12 +132,64 @@ export default function HomeScreen({ navigation }) {
                       ? ` Maximum ${maxWait.toFixed(2)}s wait`
                       : '  No wait'}
                 </Text>
+                <TouchableOpacity
+                  style={styles.reportBtn}
+                  onPress={(e) => { e.stopPropagation?.(); setReportOpen(true); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.reportBtnLabel}>Report an Accident</Text>
+                </TouchableOpacity>
               </TouchableOpacity>
             </View>
           ))}
         </ScrollView>
         <Text style={styles.hint}>Tap dot to cycle signal · Tap name for details</Text>
       </View>
+
+      <Modal visible={reportOpen} transparent animationType="fade" onRequestClose={() => setReportOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Report an Accident</Text>
+
+            <Text style={styles.modalLabel}>Number of instances</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={numInstances}
+              onChangeText={setNumInstances}
+              keyboardType="number-pad"
+              placeholder="e.g. 1"
+              placeholderTextColor="#475569"
+            />
+
+            <Text style={styles.modalLabel}>Section</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={section}
+              onChangeText={setSection}
+              placeholder="e.g. Top, Left, Right, Bottom"
+              placeholderTextColor="#475569"
+              maxLength={25}
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnGhost]}
+                onPress={() => setReportOpen(false)}
+                disabled={submitting}
+              >
+                <Text style={styles.modalBtnGhostLabel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnPrimary, submitting && { opacity: 0.6 }]}
+                onPress={submitAccident}
+                disabled={submitting}
+              >
+                <Text style={styles.modalBtnPrimaryLabel}>{submitting ? 'Submitting…' : 'Submit'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -145,4 +234,43 @@ const styles = StyleSheet.create({
   intersection: { fontSize: 14, fontWeight: '600', color: '#f1f5f9' },
   status:       { fontSize: 12, color: '#94a3b8', marginTop: 2 },
   hint:         { textAlign: 'center', color: '#334155', fontSize: 11, paddingVertical: 6 },
+
+  reportBtn: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  reportBtnLabel: { color: '#fff', fontSize: 12, fontWeight: '600' },
+
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    padding: 20,
+  },
+  modalTitle: { color: '#f1f5f9', fontSize: 18, fontWeight: '700', marginBottom: 14 },
+  modalLabel: { color: '#94a3b8', fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1, marginTop: 6 },
+  modalInput: {
+    backgroundColor: '#0f172a',
+    color: '#f1f5f9',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 6,
+    fontSize: 14,
+  },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 18, gap: 8 },
+  modalBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
+  modalBtnGhost: { backgroundColor: '#0f172a' },
+  modalBtnGhostLabel: { color: '#94a3b8', fontWeight: '600' },
+  modalBtnPrimary: { backgroundColor: '#38bdf8' },
+  modalBtnPrimaryLabel: { color: '#0f172a', fontWeight: '700' },
 });

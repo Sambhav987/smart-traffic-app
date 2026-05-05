@@ -8,11 +8,12 @@ const PORT = 4000;
 // Path to your existing SQLite database file.
 // Override at runtime with the DB_PATH env var, or edit the fallback below.
 const DB_PATH = process.env.DB_PATH || path.join('D:/Sambhav/Understanding AI/smart-traffic/', 'db.sqlite3');
-const db = new Database(DB_PATH, { readonly: true, fileMustExist: true });
+const db = new Database(DB_PATH, { fileMustExist: true });
 console.log(`Opened SQLite DB at ${DB_PATH}`);
 
 const app = express();
 app.use(cors());
+app.use(express.json());
 
 // Replace TABLE_NAME with your actual Django table, e.g. 'traffic_congestion'.
 const TABLE_NAME = process.env.TABLE_NAME || 'core_congestion';
@@ -23,6 +24,26 @@ app.get('/congestions', (req, res) => {
       .prepare(`SELECT timestamp, num_cars, section FROM ${TABLE_NAME} ORDER BY id DESC`)
       .all();
     res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/accidents', (req, res) => {
+  try {
+    const { num_instances, section } = req.body || {};
+    const n = Number(num_instances);
+    if (!Number.isFinite(n) || n < 0) {
+      return res.status(400).json({ error: 'num_instances must be a non-negative number' });
+    }
+    if (!section || typeof section !== 'string') {
+      return res.status(400).json({ error: 'section is required' });
+    }
+    const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    const info = db
+      .prepare('INSERT INTO core_accident (timestamp, num_instances, section) VALUES (?, ?, ?)')
+      .run(timestamp, n, section.slice(0, 25));
+    res.json({ ok: true, id: info.lastInsertRowid, timestamp, num_instances: n, section });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
